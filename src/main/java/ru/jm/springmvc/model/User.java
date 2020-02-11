@@ -1,62 +1,55 @@
 package ru.jm.springmvc.model;
 
 import javax.persistence.*;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
 public class User {
-
     @Id
-    @Column(name = "id")
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long id;
 
-    @Column(name = "name", nullable = false)
-    private String role;
+    @Column(name = "username", unique = true)
+    private String username;
 
-    @Column(name = "role", nullable = false)
-    private String name;
-
-    @Column(name = "password", nullable = false)
+    @Column(name = "password")
     private String password;
 
-    @Column(name = "login", nullable = false)
-    private String login;
-
-    @Column(name = "email", nullable = false)
-    private String email;
-
-    @Column(name = "country", nullable = false)
-    private String country;
-
-    @Column(name = "mobile", nullable = false)
-    private String mobile;
+    @ManyToMany
+    @JoinTable(name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id"))
+    private Set<Role> roles;
 
     public User() {
     }
 
-    public long getId() {
+    public User(String username, String password) {
+        this.username = username;
+        this.password = password;
+    }
+
+    public User(String username, String password, Set<Role> roles) {
+        this.username = username;
+        this.password = password;
+        this.roles = roles;
+    }
+
+    public Long getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    public String getRole() {
-        return role;
+    public String getUsername() {
+        return username;
     }
 
-    public void setRole(String role) {
-        this.role = role;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public String getPassword() {
@@ -67,41 +60,11 @@ public class User {
         this.password = password;
     }
 
-    public String getLogin() {
-        return login;
+    public Set<Role> getRoles() {
+        return roles;
     }
 
-    public void setLogin(String login) {
-        this.login = login;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getCountry() {
-        return country;
-    }
-
-    public void setCountry(String country) {
-        this.country = country;
-    }
-
-    public String getMobile() {
-        return mobile;
-    }
-
-    public void setMobile(String mobile) {
-        this.mobile = mobile;
-    }
-
-    @Override
-    public String toString() {
-        return "User [id=" + id + ", role=" + role + ", name=" + name + ", password=" + password + ", login=" +
-                login + ", email=" + email + ", country=" + country + ", mobile = " + mobile + "]";
+    public void setRoles(Set<Role> roles) {
+        this.roles = roles;
     }
 }

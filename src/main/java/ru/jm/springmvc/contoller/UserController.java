@@ -1,70 +1,147 @@
 package ru.jm.springmvc.contoller;
 
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.ModelAndView;
 import ru.jm.springmvc.model.User;
 import ru.jm.springmvc.service.UserService;
+import ru.jm.springmvc.util.UserValidator;
 
 @Controller
-@RequestMapping("/")
 public class UserController {
 
     private UserService userService;
+    private UserValidator userValidator;
 
     @Autowired
-    public UserController (UserService userService) {
+    public UserController(UserService userService, UserValidator userValidator) {
         this.userService = userService;
+        this.userValidator = userValidator;
     }
 
-    @GetMapping
-    public String listUsers(Model theModel) {
-        List<User> theUsers = userService.getUsers();
-        theModel.addAttribute("users", theUsers);
-        return "list-users";
+    @RequestMapping(value = "/403", method = RequestMethod.GET)
+    public ModelAndView errorPage() {
+        ModelAndView modelAndView = new ModelAndView();
+        modelAndView.addObject("title", "Error!");
+        modelAndView.addObject("message", "Oops!");
+        modelAndView.setViewName("403");
+        return modelAndView;
     }
 
-    @GetMapping("/showForm")
-    public String showFormForAdd(Model theModel) {
-        User theUser = new User();
-        theModel.addAttribute("user", theUser);
-        return "user-form";
+    @RequestMapping(value = "/home", method = RequestMethod.GET)
+    public ModelAndView homePage() {
+        ModelAndView modelAndView = new ModelAndView();
+
+        modelAndView.addObject("title", "connect Spring Security");
+        modelAndView.addObject("message", "This is homepage");
+
+        modelAndView.setViewName("home");
+        return modelAndView;
     }
 
-    @PostMapping("/saveUser")
-    public String saveUser(@ModelAttribute("user") User theUser) {
+    @RequestMapping(value = "/admin/users", method = RequestMethod.GET)
+    public ModelAndView adminPage() {
+        ModelAndView modelAndView = new ModelAndView();
 
-        userService.saveUser(theUser);
-        return "redirect:/";
+        modelAndView.addObject("allUsers", this.userService.getAllUsers());
+
+        modelAndView.setViewName("admin/users");
+        return modelAndView;
     }
 
-    @GetMapping("/updateForm")
-    public String showFormForUpdate(@RequestParam("userId") String theId,
-                                    Model theModel) {
-        System.out.println(theId);
-        Long id = Long.parseLong(theId);
-        User theUser = userService.getUser(id);
-        theModel.addAttribute("user", theUser);
-        return "user-form";
+    @RequestMapping(value = "/user/user", method = RequestMethod.GET)
+    public ModelAndView userPage() {
+        ModelAndView modelAndView = new ModelAndView();
+        modelAndView.setViewName("user/user");
+        return modelAndView;
     }
 
-    @GetMapping("/delete")
-    public String deleteUser(@RequestParam("userId") Long theId) {
-        userService.deleteUser(theId);
-        return "redirect:/";
+
+    @RequestMapping(value = "/admin/users/add", method = RequestMethod.GET)
+    public ModelAndView addPage() {
+        ModelAndView modelAndView = new ModelAndView();
+        modelAndView.setViewName("admin/add");
+        return modelAndView;
     }
 
-    @PostMapping("/update")
-    public String updateUser(@ModelAttribute("user") User theUser) {
-        userService.updateUser(theUser);
-        return "redirect:/";
+
+    @RequestMapping(value = "/admin/users/add", method = RequestMethod.POST)
+
+    public ModelAndView saveUser(@ModelAttribute("add") User user,
+                                 @RequestParam String[] checkboxRoles,
+                                 BindingResult bindingResult) {
+        ModelAndView modelAndView = new ModelAndView();
+
+        userValidator.validate(user, bindingResult);
+        if (bindingResult.hasErrors() || (userService.findUserByUsername(user.getUsername()) != null)) {
+
+            modelAndView.addObject("myError", "Username or password invalid!");
+            modelAndView.setViewName("admin/add");
+            return modelAndView;
+        }
+
+        if (checkboxRoles.length < 2) {
+            modelAndView.addObject("myError", "Role invalid. Choose a role!");
+            modelAndView.setViewName("admin/add");
+            return modelAndView;
+        }
+        modelAndView.setViewName("redirect:/admin/users");
+        this.userService.addUser(user, checkboxRoles);
+        return modelAndView;
+    }
+
+
+    @RequestMapping(value = "/admin/users/edit/{id}", method = RequestMethod.GET)
+    public ModelAndView editPage(@PathVariable("id") Long id) {
+        ModelAndView modelAndView = new ModelAndView();
+        User user = this.userService.getUserById(id);
+
+        String newPassword = "";
+        modelAndView.setViewName("admin/edit");
+
+        modelAndView.addObject("user", user);
+
+        modelAndView.addObject("newPassword", newPassword);
+
+        modelAndView.addObject("editRoles", user.getRoles().toString());
+        return modelAndView;
+    }
+
+
+    @RequestMapping(value = "/admin/users/edit", method = RequestMethod.POST)
+    @ResponseBody
+    public ModelAndView editUser(@RequestParam(name = "checkboxRoles") String[] checkboxRoles,
+                                 @RequestParam(name = "newPassword") String newPassword,
+                                 @ModelAttribute("user") User user,
+                                 BindingResult bindingResult) {
+        ModelAndView modelAndView = new ModelAndView();
+
+        userValidator.validate(user, bindingResult);
+        if (bindingResult.hasErrors() || (userService.findUserByUsername(user.getUsername()) != null)) {
+            modelAndView.addObject("myError", "Username or password invalid.");
+            modelAndView.setViewName("admin/edit");
+            return modelAndView;
+        }
+
+        if (checkboxRoles.length < 2) {
+            modelAndView.addObject("myError", "Role invalid. Choose a role!");
+            modelAndView.setViewName("admin/add");
+            return modelAndView;
+        }
+
+        this.userService.updateUser(user, newPassword, checkboxRoles);
+        modelAndView.setViewName("redirect:/admin/users");
+        return modelAndView;
+    }
+
+
+    @RequestMapping(value = "/admin/users/delete/{id}")
+    public ModelAndView deleteUser(@PathVariable("id") Long id) {
+        ModelAndView modelAndView = new ModelAndView();
+        modelAndView.setViewName("redirect:/admin/users");
+        this.userService.deleteUser(id);
+        return modelAndView;
     }
 }
